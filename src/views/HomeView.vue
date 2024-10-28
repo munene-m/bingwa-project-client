@@ -4,13 +4,13 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 function handleEngineer() {
-  router.push('/login/engineer')
+  router.push('/signup/engineer')
 }
 function handlePm() {
-  router.push('/login/project-manager')
+  router.push('/signup/project-manager')
 }
 function handleAdmin() {
-  router.push('/login/admin')
+  router.push('/signup/admin')
 }
 </script>
 
