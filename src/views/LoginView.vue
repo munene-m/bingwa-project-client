@@ -35,6 +35,11 @@ async function handleLogin() {
       autoUpdateDependencies: false,
       maxAge: 86400,
     })
+    cookies.set('id', response.data.user.id, {
+      doNotParse: false,
+      autoUpdateDependencies: false,
+      maxAge: 86400,
+    })
     toast.success('Login successful!')
     router.push({ name: 'dashboard' })
   } catch (error) {
