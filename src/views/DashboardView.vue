@@ -6,8 +6,6 @@ import axios from 'axios'
 
 const apiUrl = import.meta.env.VITE_API_URL
 const projects = ref([])
-
-// State to hold form visibility and selected project details
 const showEditForm = ref(false)
 const showAssignForm = ref(false)
 const showCreateForm = ref(false)
@@ -27,7 +25,22 @@ const getProjects = async () => {
   }
 }
 
-// Functions to handle modal visibility
+const getAssignedProjects = async () => {
+  try {
+    const response = await axios.get(
+      `${apiUrl}/projects/project/${useCookies().get('id')}`,
+      {
+        headers: {
+          Authorization: `Bearer ${useCookies().get('token')}`,
+        },
+      },
+    )
+    projects.value = response.data
+  } catch (error) {
+    console.log(error)
+  }
+}
+
 const openEditForm = project => {
   Object.assign(selectedProject, project)
   showEditForm.value = true
@@ -42,7 +55,6 @@ const openCreateForm = () => {
   showCreateForm.value = true
 }
 
-// Close form modals
 const closeForm = async () => {
   try {
     const response = await axios.put(
@@ -57,7 +69,12 @@ const closeForm = async () => {
         },
       },
     )
-    getProjects()
+    if (role.value === 'ADMIN') {
+      getProjects()
+    } else {
+      getAssignedProjects()
+    }
+
     useToast().success(response.data.message)
   } catch (error) {
     console.log(error)
@@ -118,7 +135,11 @@ const deleteProject = async id => {
 
 onMounted(() => {
   role.value = useCookies().get('role')
-  getProjects()
+  if (role.value === 'ADMIN') {
+    getProjects()
+  } else {
+    getAssignedProjects()
+  }
 })
 </script>
 
@@ -130,6 +151,7 @@ onMounted(() => {
     <h1 v-else class="text-3xl font-bold text-secondary my-4">My projects</h1>
 
     <button
+      v-if="role === 'ADMIN'"
       @click="openCreateForm"
       class="px-4 py-2 bg-blue-500 text-white rounded mb-4"
     >
@@ -137,6 +159,9 @@ onMounted(() => {
     </button>
 
     <!-- Projects list -->
+    <div v-if="projects.length === 0" class="flex items-center justify-center">
+      <h1>No projects assigned.</h1>
+    </div>
     <div class="flex flex-row flex-wrap gap-4">
       <div
         v-for="project in projects"
@@ -194,7 +219,7 @@ onMounted(() => {
           End Date: {{ new Date(project.endDate).toLocaleDateString() }}
         </p>
 
-        <div class="mt-4 gap-3 flex">
+        <div v-if="role !== 'ENGINEER'" class="mt-4 gap-3 flex">
           <button
             @click="openEditForm(project)"
             class="px-2 py-1 bg-green-500 text-white rounded"
@@ -202,12 +227,14 @@ onMounted(() => {
             Edit
           </button>
           <button
+            v-if="role === 'ADMIN'"
             @click="openAssignForm(project)"
             class="px-2 py-1 bg-yellow-500 text-white rounded"
           >
             Assign
           </button>
           <button
+            v-if="role === 'ADMIN'"
             @click="deleteProject(project.id)"
             class="px-2 py-1 bg-red-500 text-white rounded"
           >
