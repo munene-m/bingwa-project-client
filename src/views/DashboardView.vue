@@ -1,14 +1,16 @@
 <script setup>
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useToast } from 'vue-toastification'
-import { onMounted, ref, reactive } from 'vue'
+import { onMounted, ref, computed, reactive } from 'vue'
 import axios from 'axios'
 
 const apiUrl = import.meta.env.VITE_API_URL
 const projects = ref([])
+const users = ref([])
 const showEditForm = ref(false)
 const showAssignForm = ref(false)
 const showCreateForm = ref(false)
+const selectedUserId = ref(null)
 const selectedProject = reactive({})
 const role = ref('')
 // Fetch projects
@@ -50,9 +52,19 @@ const openAssignForm = project => {
   Object.assign(selectedProject, project)
   showAssignForm.value = true
 }
-
 const openCreateForm = () => {
   showCreateForm.value = true
+}
+
+const getUsers = async () => {
+  try {
+    const response = await axios.get(`${apiUrl}/users`, {
+      headers: { Authorization: `Bearer ${useCookies().get('token')}` },
+    })
+    users.value = response.data
+  } catch (error) {
+    console.log(error)
+  }
 }
 
 const closeForm = async () => {
@@ -132,6 +144,27 @@ const deleteProject = async id => {
     useToast().error(error.response.data.message)
   }
 }
+const roleForSelectedUser = computed(() => {
+  const user = users.value.find(user => user.id === selectedUserId.value)
+  return user ? user.role : ''
+})
+const assignUserToProject = async userRole => {
+  try {
+    await axios.put(
+      `${apiUrl}/projects/assign/${selectedProject.id}/${selectedUserId.value}`,
+      { assignmentType: userRole },
+      {
+        headers: { Authorization: `Bearer ${useCookies().get('token')}` },
+      },
+    )
+    useToast().success('User assigned to project')
+    getProjects()
+    showAssignForm.value = false
+  } catch (error) {
+    console.log(error)
+    useToast().error('Failed to assign user')
+  }
+}
 
 onMounted(() => {
   role.value = useCookies().get('role')
@@ -140,6 +173,7 @@ onMounted(() => {
   } else {
     getAssignedProjects()
   }
+  getUsers()
 })
 </script>
 
@@ -160,7 +194,7 @@ onMounted(() => {
 
     <!-- Projects list -->
     <div v-if="projects.length === 0" class="flex items-center justify-center">
-      <h1>No projects assigned.</h1>
+      <h1>No projects to display.</h1>
     </div>
     <div class="flex flex-row flex-wrap gap-4">
       <div
@@ -278,15 +312,14 @@ onMounted(() => {
       <div class="bg-white p-4 rounded shadow-lg w-1/3">
         <h2 class="text-lg font-semibold mb-4">Assign Project</h2>
         <label>Assign to:</label>
-        <select
-          v-model="selectedProject.assignedTo"
-          class="border p-2 rounded w-full mb-4"
-        >
-          <option value="projectManager">Project Manager</option>
-          <option value="engineer">Engineer</option>
+        <select v-model="selectedUserId" class="border p-2 rounded w-full mb-4">
+          <option v-if="users.length === 0" disabled>No users available</option>
+          <option v-for="user in users" :key="user.id" :value="user.id">
+            {{ user.firstName }} {{ user.lastName }}
+          </option>
         </select>
         <button
-          @click="closeForm"
+          @click="assignUserToProject(roleForSelectedUser)"
           class="px-3 py-1 bg-blue-500 text-white rounded"
         >
           Assign
